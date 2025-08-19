@@ -55,7 +55,7 @@ class LoadData():
         # Check if it's an image by extension
         if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.gif')):
             try:
-                img = Image.open(file_path)  # do NOT convert -> keep original mode
+                img = Image.open(file_path).convert('L')
                 img = img.resize((1024, 1024), Image.LANCZOS)  # resize to 1024x1024
                 labels.append(img)
             except Exception as e:
@@ -71,35 +71,42 @@ class LoadData():
 
     # Iterate and print min/max for each PIL image
     for idx, pil_img in enumerate(labels):
-        arr = np.array(pil_img)  # convert PIL image to numpy array
-        print(f"Image {idx+1}: min={arr.min()}, max={arr.max()}, mode={pil_img.mode}, size={pil_img.size}")
+        min_val, max_val = pil_img.getextrema()
+        print(f"Image {idx+1}: min={min_val}, max={max_val}, mode={pil_img.mode}, size={pil_img.size}")
 
-  def binary_labels_convert(self, labels):
+  def binary_labels_convert(self, labels, new_min=0, new_max=255):
 
     binary_labels = []
 
     for idx, pil_img in enumerate(labels):
-        arr = np.array(pil_img)  # convert to numpy array
 
-        min_val = arr.min()
-        max_val = arr.max()
+        if pil_img.mode != "L":
+          raise ValueError("Image must be in grayscale ('L') mode.")
+        
+        # Get current min/max
+        extrema = pil_img.getextrema()
+        old_min, old_max = extrema
 
-        # Map min -> 0, max -> 1
-        bin_arr = np.where(arr == max_val, 255, 0).astype(np.uint8)
+        print("Label old mininmum pixel value:", old_min)
+        print("Label old maximum pixel value:", old_max)
 
-        print(f"Image {idx+1}: min={min_val}, max={max_val}, unique values after binarization={np.unique(bin_arr)}")
+        if old_min == old_max:
+          # Avoid divide-by-zero; image is flat
+          return img.point(lambda p: new_min)
 
-        binary_labels.append(Image.fromarray(bin_arr).convert('L'))
+        # Linear rescale
+        scale = (new_max - new_min) / (old_max - old_min)
+        offset = new_min - old_min * scale
+
+        new_label = pil_img.point(lambda p: int(p * scale + offset))
+
+        binary_labels.append(new_label)
+
+        new_min, new_max = new_label.getextrema()
+        print("Label new mininmum pixel value:", new_min)
+        print("Label new maximum pixel value:", new_max)
       
-        min_val, max_val = Image.fromarray(bin_arr).convert('L').getextrema()
-        print("Label mininmum pixel value:", min_val)
-        print("Label maximum pixel value:", max_val)
-
     print(f"Loaded {len(binary_labels)} images resized to 1024x1024 (kept original mode).")
-    print(f"Labels 1 Shpae {binary_labels[0].size}")
-    print(f"Labels 1 Shape {type(binary_labels[0])}")
-    print(f"Labels 2 Type {binary_labels[1].size}")
-    print(f"Labels 2 Type {type(binary_labels[1])}")
 
     return binary_labels
 
