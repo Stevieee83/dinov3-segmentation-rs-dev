@@ -157,12 +157,12 @@ y_path = file_path_csv + file_path_labels + '/y.csv'
 idx_path = file_path_csv + file_path_idx + '/idx.csv'
 
 # Define the OutputDataFE Python object and load the X (features) and y (labels)
-output_data = OutputDataFE(xs, ys)
+output_data = OutputDataFE(xs, ys, image_index, x_path, y_path, idx_path)
 
 # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
-output_data.tensor_to_df(x_path)
-output_data.tensor_to_df(y_path)
-output_data.tensor_to_df(idx_path)
+output_data.tensor_to_df_features()
+output_data.tensor_to_df_labels()
+output_data.tensor_to_df_index()
 
 print("Design matrix of size : ", xs.shape)
 print("Label matrix of size : ", ys.shape)
