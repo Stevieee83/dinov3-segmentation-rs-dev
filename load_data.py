@@ -90,6 +90,10 @@ class LoadData():
         print(f"Image {idx+1}: min={min_val}, max={max_val}, unique values after binarization={np.unique(bin_arr)}")
 
         binary_labels.append(Image.fromarray(bin_arr).convert('L'))
+      
+        min_val, max_val = Image.fromarray(bin_arr).convert('L').getextrema()
+        print("Label mininmum pixel value:", min_val)
+        print("Label maximum pixel value:", max_val)
 
     print(f"Loaded {len(binary_labels)} images resized to 1024x1024 (kept original mode).")
     print(f"Labels 1 Shpae {binary_labels[0].size}")
