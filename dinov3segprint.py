@@ -312,7 +312,7 @@ with torch.inference_mode():
         x = feats[-1].squeeze().detach().cpu()
         print("ViT X Output Features Shape: ", x.shape)
         dim = x.shape[0]
-        print("ViT X Dim Output Features Shape: ", dim.shape)
+        print("ViT X Dim Output Features Shape: ", dim)
         x = x.view(dim, -1).permute(1, 0)
         print("X Features Shape: ", x.shape)
 
