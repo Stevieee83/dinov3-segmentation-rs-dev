@@ -25,6 +25,7 @@ run = 1
 file_path_csv = './output_csv_data/'
 file_path_images = 'images/'
 file_path_labels = 'labels/'
+file_path_idx = 'image_index/'
 
 image_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images"      # Directory containing your images
 labels_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks"      # Directory containing your labels
@@ -33,6 +34,7 @@ load_data = LoadData(image_dir, labels_dir)
 
 os.makedirs(file_path_csv + file_path_images, exist_ok=True)
 os.makedirs(file_path_csv + file_path_labels, exist_ok=True)
+os.makedirs(file_path_csv + file_path_idx, exist_ok=True)
 
 # Initialise the Weights and Biases run
 wandb.init(project=f"DINOv3 Segmentation FE {model_type}",
@@ -152,13 +154,15 @@ image_index = image_index[idx]
 
 x_path = file_path_csv + file_path_images + '/x.csv'
 y_path = file_path_csv + file_path_labels + '/y.csv'
+idx_path = file_path_csv + file_path_idx + '/idx.csv'
 
 # Define the OutputDataFE Python object and load the X (features) and y (labels)
-output_data = OutputDataFE(xs, ys, x_path, y_path)
+output_data = OutputDataFE(xs, ys)
 
 # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
-x_df = output_data.tensor_to_df_features()
-y_df = output_data.tensor_to_df_labels()
+output_data.tensor_to_df(x_path)
+output_data.tensor_to_df(y_path)
+output_data.tensor_to_df(idx_path)
 
 print("Design matrix of size : ", xs.shape)
 print("Label matrix of size : ", ys.shape)
