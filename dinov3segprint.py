@@ -298,15 +298,23 @@ def load_image_from_url(url: str) -> Image:
 
 
 test_image = load_image_from_url(test_image_fpath)
+print("Test Image PIL Size: ", test_image.size)
 test_image_resized = resize_transform(test_image)
+print("Test Image Tensor Resized Shape: ", test_image_resized.shape)
 test_image_normalized = TF.normalize(test_image_resized, mean=IMAGENET_MEAN, std=IMAGENET_STD)
+print("Test Image Tensor Normalised Shape: ", test_image_normalized.shape)
+print("Test Image Tensor Normalised Unsqueezed 0 CUDA Shape: ", test_image_normalized.unsqueeze(0).cuda().shape)
 
 with torch.inference_mode():
     with torch.autocast(device_type='cuda', dtype=torch.float32):
         feats = model.get_intermediate_layers(test_image_normalized.unsqueeze(0).cuda(), n=range(n_layers), reshape=True, norm=True)
+        print("ViT Output Features Shape: ", feats.shape)
         x = feats[-1].squeeze().detach().cpu()
+        print("ViT X Output Features Shape: ", x.shape)
         dim = x.shape[0]
+        print("ViT X Dim Output Features Shape: ", dim.shape)
         x = x.view(dim, -1).permute(1, 0)
+        print("X Features Shape: ", x.shape)
 
 h_patches, w_patches = [int(d / PATCH_SIZE) for d in test_image_resized.shape[1:]]
 
@@ -326,7 +334,9 @@ plt.subplot(1, 3, 3)
 plt.axis('off')
 plt.imshow(fg_score_mf)
 plt.title('+ median filter')
+plt.savefig('model_outputs_plot.png')
 plt.show()
+
 
 ##############################################################################################
 # Saving the model for future use as a pickle file
