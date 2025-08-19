@@ -26,8 +26,8 @@ run = 1
 # file_path_labels = 'labels/'
 # os.makedirs(file_path + file_path_images, exist_ok=True)
 # os.makedirs(file_path + file_path_labels, exist_ok=True)
-image_dir = "/content/drive/MyDrive/Borebreen_opencv"      # Directory containing your images
-labels_dir = "/content/drive/MyDrive/Borebreen_opencv/gt"  # Directory containing your labels
+image_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images"      # Directory containing your images
+labels_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks"      # Directory containing your labels
 
 load_data = LoadData(image_dir, labels_dir)
 
