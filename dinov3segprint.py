@@ -308,7 +308,7 @@ print("Test Image Tensor Normalised Unsqueezed 0 CUDA Shape: ", test_image_norma
 with torch.inference_mode():
     with torch.autocast(device_type='cuda', dtype=torch.float32):
         feats = model.get_intermediate_layers(test_image_normalized.unsqueeze(0).cuda(), n=range(n_layers), reshape=True, norm=True)
-        print("ViT Output Features Shape: ", feats.shape)
+        print("ViT Output Features Shape: ", feats)
         x = feats[-1].squeeze().detach().cpu()
         print("ViT X Output Features Shape: ", x.shape)
         dim = x.shape[0]
