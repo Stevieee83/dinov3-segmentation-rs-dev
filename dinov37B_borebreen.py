@@ -16,20 +16,23 @@ import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
 from load_data import LoadData
+from output_data_fe import OutputDataFE
 
 import wandb
 
 model_type = 'ViT7b'
 run = 1
-# file_path = './output_image_data/'
-# file_path_images = 'images/'
-# file_path_labels = 'labels/'
-# os.makedirs(file_path + file_path_images, exist_ok=True)
-# os.makedirs(file_path + file_path_labels, exist_ok=True)
+file_path_csv = './output_csv_data/'
+file_path_images = 'images/'
+file_path_labels = 'labels/'
+
 image_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images"      # Directory containing your images
 labels_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks"      # Directory containing your labels
 
 load_data = LoadData(image_dir, labels_dir)
+
+os.makedirs(file_path_csv + file_path_images, exist_ok=True)
+os.makedirs(file_path_csv + file_path_labels, exist_ok=True)
 
 # Initialise the Weights and Biases run
 wandb.init(project=f"DINOv3 Segmentation FE {model_type}",
@@ -147,8 +150,19 @@ xs = xs[idx]
 ys = ys[idx]
 image_index = image_index[idx]
 
+x_path = file_path_csv + file_path_images + '/x.csv'
+y_path = file_path_csv + file_path_labels + '/y.csv'
+
+# Define the OutputDataFE Python object and load the X (features) and y (labels)
+output_data = OutputDataFE(xs, ys, x_path, y_path)
+
+# Call the Python class methods to output the X and y data from the DINOv3 feature extractor
+x_df = output_data.tensor_to_df_features()
+y_df = output_data.tensor_to_df_labels()
+
 print("Design matrix of size : ", xs.shape)
 print("Label matrix of size : ", ys.shape)
+print("Image index matrix of size : ", image_index.shape)
 print("DINOv3 Feature Extractor Script Complete")
 
 ##############################################################################################
