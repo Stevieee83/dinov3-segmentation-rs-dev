@@ -222,14 +222,9 @@ clf = LogisticRegression(random_state=0, C=0.1, max_iter=100000, verbose=2).fit(
 
 ##############################################################################################
 # Test images and inferrence
-test_image_fpath = "https://dl.fbaipublicfiles.com/dinov3/notebooks/foreground_segmentation/test_image.jpg"
+test_image_path = "https://dl.fbaipublicfiles.com/dinov3/notebooks/foreground_segmentation/test_image.jpg"
 
-def load_image_from_url(url: str) -> Image:
-    with urllib.request.urlopen(url) as f:
-        return Image.open(f).convert("RGB")
-
-
-test_image = load_image_from_url(test_image_fpath)
+test_image = Image.open(test_image_path).convert("RGB")
 test_image_resized = resize_transform(test_image)
 test_image_normalized = TF.normalize(test_image_resized, mean=IMAGENET_MEAN, std=IMAGENET_STD)
 
