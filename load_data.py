@@ -6,7 +6,7 @@ class LoadData():
 
   """
   Load custom image data from the Borebreen glacier in Svalbard Norway 
-     to input ot the feature extractor oif DINOv3.
+     to input to the feature extractor of DINOv3.
      ARGS: 
      image_dir (str): Input file path directory of the input images.
      labels_dir (str): Input file path directory of the input labels.
@@ -89,7 +89,7 @@ class LoadData():
 
         print(f"Image {idx+1}: min={min_val}, max={max_val}, unique values after binarization={np.unique(bin_arr)}")
 
-        binary_labels.append(Image.fromarray(bin_arr))
+        binary_labels.append(Image.fromarray(bin_arr).convert('L'))
 
     print(f"Loaded {len(binary_labels)} images resized to 1024x1024 (kept original mode).")
     print(f"Labels 1 Shpae {binary_labels[0].size}")
