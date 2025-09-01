@@ -92,7 +92,7 @@ class LoadData():
 
         if old_min == old_max:
           # Avoid divide-by-zero; image is flat
-          return img.point(lambda p: new_min)
+          return pil_img.point(lambda p: new_min)
 
         # Linear rescale
         scale = (new_max - new_min) / (old_max - old_min)
