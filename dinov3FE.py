@@ -75,6 +75,8 @@ def main():
     model.cuda()
     print(model)
 
+    print_model_architecture(model, model_name=MODEL_NAME)
+
     ##############################################################################################
     # Load the image data and their labels into the CUDA runtime
     images, labels = load_data.sequence_data_loading()   
@@ -187,8 +189,53 @@ def main():
 
     # Close your Weights and biases run
     wandb.finish()
+
+def print_model_parameters(model, model_name="DINOv3"):
+    """Print detailed information about model parameters"""
+    
+    print(f"\n{'='*60}")
+    print(f"  {model_name} MODEL PARAMETERS")
+    print(f"{'='*60}")
+    
+    total_params = 0
+    trainable_params = 0
+    
+    print(f"\n{'Layer Name':<40} {'Shape':<25} {'Parameters':<15} {'Trainable'}")
+    print("-" * 90)
+    
+    for name, param in model.named_parameters():
+        param_count = param.numel()
+        total_params += param_count
+        
+        if param.requires_grad:
+            trainable_params += param_count
+            trainable_status = "Yes"
+        else:
+            trainable_status = "No"
+        
+        shape_str = str(list(param.shape))
+        print(f"{name:<40} {shape_str:<25} {param_count:<15,} {trainable_status}")
+    
+    print("-" * 90)
+    print(f"{'TOTAL PARAMETERS':<40} {'':<25} {total_params:<15,}")
+    print(f"{'TRAINABLE PARAMETERS':<40} {'':<25} {trainable_params:<15,}")
+    print(f"{'NON-TRAINABLE PARAMETERS':<40} {'':<25} {total_params - trainable_params:<15,}")
+    
+    # Calculate model size in MB
+    model_size_mb = total_params * 4 / (1024 * 1024)  # Assuming float32 (4 bytes per param)
+    print(f"{'ESTIMATED SIZE (MB)':<40} {'':<25} {model_size_mb:<15.2f}")
+    print(f"{'='*60}")
+
+def print_model_architecture(model, model_name="DINOv3"):
+    """Print model architecture summary"""
+    print(f"\n{'='*60}")
+    print(f"  {model_name} ARCHITECTURE SUMMARY")
+    print(f"{'='*60}")
+    print(model)
+    print(f"{'='*60}")
     
 # Executes the main method from the main.py Python script
 if __name__ == '__main__':
     # Calls the main function for the DINOv3 feature extractor (FE) script
     main()
+
