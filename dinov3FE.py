@@ -17,6 +17,7 @@ from tqdm import tqdm
 import pandas as pd
 
 from load_data import LoadData
+from output_data_fe import OutputDataFE
 
 import wandb
 
@@ -159,16 +160,16 @@ def main():
     print("Label full matrix of size : ", ys.shape)
     print("Image full index matrix of size : ", image_index.shape)
 
-    xs_numpy = xs.numpy()
-    ys_numpy = ys.numpy()
+    os.makedirs(args.output_csv, exist_ok=True)
+    x_csv_path = args.output_csv + 'X.csv'
+    y_csv_path = args.output_csv + 'y.csv'
 
-    # Convert to pandas DataFrame
-    df_xs = pd.DataFrame(xs_numpy)
-    df_ys = pd.DataFrame(ys_numpy)
-    
-    os.makedirs(args.output_csv)
-    df_xs.to_csv(args.output_csv + 'X.csv', index=False)
-    df_ys.to_csv(args.output_csv + 'y.csv', index=False)
+    # Define the OutputDataFE Python object and load the X (features) and y (labels)
+    output_data = OutputDataFE(x_tensor, y_tensor, x_csv_path, y_csv_path)
+
+    # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
+    x_df = output_data.tensor_to_df_features()
+    y_df = output_data.tensor_to_df_labels()
     print('Saved xs.csv and ys.csv to their output filepath directory')
 
     # keeping only the patches that have clear positive or negative label
@@ -182,15 +183,15 @@ def main():
     print("Image index matrix of size : ", image_index.shape)
     print("DINOv3 Feature Extractor Script Complete")
 
-    xs_numpy = xs.numpy()
-    ys_numpy = ys.numpy()
+    x_csv_path = args.output_csv + 'X_reduced.csv'
+    y_csv_path = args.output_csv + 'y_reduced.csv'
 
-    # Convert to pandas DataFrame
-    df_xs = pd.DataFrame(xs_numpy)
-    df_ys = pd.DataFrame(ys_numpy)
-    
-    df_xs.to_csv(args.output_csv + 'X_reduced.csv', index=False)
-    df_ys.to_csv(args.output_csv + 'y_reduced.csv', index=False)
+    # Define the OutputDataFE Python object and load the X (features) and y (labels)
+    output_data = OutputDataFE(x_tensor, y_tensor, x_csv_path, y_csv_path)
+
+    # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
+    x_df = output_data.tensor_to_df_features()
+    y_df = output_data.tensor_to_df_labels()
     print('Saved xs_reduced.csv and ys_reduced.csv to their output filepath directory')
 
     # Close your Weights and biases run
@@ -200,3 +201,4 @@ def main():
 if __name__ == '__main__':
     # Calls the main function for the DINOv3 feature extractor (FE) script
     main()
+
