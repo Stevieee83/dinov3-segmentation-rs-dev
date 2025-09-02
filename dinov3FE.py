@@ -38,8 +38,8 @@ def main():
     load_data = LoadData(args.image_dir, args.labels_dir)
 
     # Initialise the Weights and Biases run
-    wandb.init(project=f"DINOv3 Segmentation FE {args.model_type}",
-                name=f"Code Test {args.run}")
+    wandb.init(project=f"DINOv3 Segmentation FE to CSV {args.model_type}",
+                name=f"Code Run {args.run}")
 
     # Copy your config
     config = wandb.config
@@ -75,7 +75,8 @@ def main():
     model.cuda()
     print(model)
 
-    print_model_architecture(model, model_name=MODEL_NAME)
+    print_model_parameters(model, model_name=MODEL_NAME)
+    print_weight_values(model, model_name="DINOv3", max_layers=10, max_values_per_layer=20)
 
     ##############################################################################################
     # Load the image data and their labels into the CUDA runtime
@@ -226,16 +227,80 @@ def print_model_parameters(model, model_name="DINOv3"):
     print(f"{'ESTIMATED SIZE (MB)':<40} {'':<25} {model_size_mb:<15.2f}")
     print(f"{'='*60}")
 
-def print_model_architecture(model, model_name="DINOv3"):
-    """Print model architecture summary"""
-    print(f"\n{'='*60}")
-    print(f"  {model_name} ARCHITECTURE SUMMARY")
-    print(f"{'='*60}")
-    print(model)
-    print(f"{'='*60}")
+def print_weight_values(model, model_name="DINOv3", max_layers=10, max_values_per_layer=20):
+    """Print actual weight parameter values from the model"""
+    
+    print(f"\n{'='*80}")
+    print(f"  {model_name} WEIGHT PARAMETER VALUES")
+    print(f"{'='*80}")
+    
+    layer_count = 0
+    
+    for name, param in model.named_parameters():
+        if layer_count >= max_layers:
+            print(f"\n... (showing first {max_layers} layers only)")
+            break
+            
+        print(f"\n{'-'*60}")
+        print(f"LAYER: {name}")
+        print(f"SHAPE: {list(param.shape)}")
+        print(f"DTYPE: {param.dtype}")
+        print(f"DEVICE: {param.device}")
+        print(f"REQUIRES_GRAD: {param.requires_grad}")
+        print(f"TOTAL PARAMETERS: {param.numel():,}")
+        print(f"{'-'*60}")
+        
+        # Get parameter values
+        param_data = param.data.detach().cpu()
+        flattened = param_data.flatten()
+        
+        # Print statistics
+        print(f"MIN VALUE: {flattened.min().item():.6f}")
+        print(f"MAX VALUE: {flattened.max().item():.6f}")
+        print(f"MEAN VALUE: {flattened.mean().item():.6f}")
+        print(f"STD VALUE: {flattened.std().item():.6f}")
+        
+        # Print first few values
+        print(f"\nFIRST {min(max_values_per_layer, param.numel())} VALUES:")
+        values_to_show = min(max_values_per_layer, param.numel())
+        
+        for i in range(values_to_show):
+            if i % 5 == 0 and i > 0:  # New line every 5 values
+                print()
+            print(f"{flattened[i].item():>12.6f}", end=" ")
+        
+        print()  # New line after values
+        
+        # For 2D+ tensors, show original shape structure for first few elements
+        if len(param.shape) >= 2:
+            print(f"\nORIGINAL TENSOR STRUCTURE (first 3x3 if applicable):")
+            if len(param.shape) == 2:  # Matrix
+                rows_to_show = min(3, param.shape[0])
+                cols_to_show = min(3, param.shape[1])
+                for i in range(rows_to_show):
+                    for j in range(cols_to_show):
+                        print(f"{param_data[i, j].item():>10.4f}", end=" ")
+                    if param.shape[1] > 3:
+                        print("...", end="")
+                    print()
+                if param.shape[0] > 3:
+                    print("...")
+                    
+            elif len(param.shape) == 4:  # Conv weights (out_channels, in_channels, height, width)
+                print(f"Conv weight shape: {param.shape}")
+                # Show first channel of first filter
+                if param.shape[2] >= 3 and param.shape[3] >= 3:
+                    print("First 3x3 of first filter, first input channel:")
+                    for i in range(min(3, param.shape[2])):
+                        for j in range(min(3, param.shape[3])):
+                            print(f"{param_data[0, 0, i, j].item():>10.4f}", end=" ")
+                        print()
+        
+        layer_count += 1
+    
+    print(f"\n{'='*80}")
     
 # Executes the main method from the main.py Python script
 if __name__ == '__main__':
     # Calls the main function for the DINOv3 feature extractor (FE) script
     main()
-
