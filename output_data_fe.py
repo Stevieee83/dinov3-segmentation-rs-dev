@@ -29,8 +29,13 @@ class OutputDataFE():
 
     def tensor_to_df_labels(self):
 
+        tensor_numpy = self.y_tensor.cpu().numpy()
+        print("Tensor NumPy label uniques values: ", np.unique(tensor_numpy))
+
         # Convert to NumPy, then DataFrame
-        y_df = pd.DataFrame(self.y_tensor.cpu().numpy(), columns=["labels"])
+        y_df = pd.DataFrame(tensor_numpy, columns=["labels"])
+
+        print("DataFrame Unique values: ", df["0"].unique())
 
         print("Converted DataFrame Shape")
         print(y_df.shape)
