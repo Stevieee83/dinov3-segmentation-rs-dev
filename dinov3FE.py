@@ -14,146 +14,189 @@ from sklearn.linear_model import LogisticRegression
 import torch
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
+import pandas as pd
 
 from load_data import LoadData
 
 import wandb
 
-model_type = 'ViT7b'
-run = 5
+import argparse
 
-image_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images"      # Directory containing your images
-labels_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks"      # Directory containing your labels
-output_dir = f"/uoa/scratch/users/r02sw23/dinov3-main/saved_models/{str(run)}/"      # Output filepath directory to save output data to
+# Defines the ArgumentParser object
+parser = argparse.ArgumentParser()
 
-os.makedirs(output_dir, exist_ok=True)
+# Input parameters
+parser.add_argument("--model_type", type=str, default='ViT7b')
+parser.add_argument("--run", type=int, default=1)
+parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images")
+parser.add_argument("--labels_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks")
+parser.add_argument("--output_dir_first", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main/saved_models/")
+parser.add_argument("--output_csv", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main/output_csv/")
+# ------------------------------------------------------------------------
 
-load_data = LoadData(image_dir, labels_dir)
+# Main funciton to sequence the Python script source code
+def main():
+    # Creates the ArgumentParser object in the main function
+    args = parser.parse_args()
+    
+    output_dir = args.output_dir_first + f"{args.run}/"      # Output filepath directory to save output data to
 
-# Initialise the Weights and Biases run
-wandb.init(project=f"DINOv3 Segmentation FE {model_type}",
-            name=f"Code Test {run}")
+    os.makedirs(output_dir, exist_ok=True)
 
-# Copy your config
-config = wandb.config
+    load_data = LoadData(args.image_dir, args.labels_dir)
 
-DINOV3_GITHUB_LOCATION = "facebookresearch/dinov3"
+    # Initialise the Weights and Biases run
+    wandb.init(project=f"DINOv3 Segmentation FE {args.model_type}",
+                name=f"Code Test {args.run}")
 
-if os.getenv("DINOV3_LOCATION") is not None:
-    DINOV3_LOCATION = os.getenv("DINOV3_LOCATION")
-else:
-    DINOV3_LOCATION = DINOV3_GITHUB_LOCATION
+    # Copy your config
+    config = wandb.config
 
-print(f"DINOv3 location set to {DINOV3_LOCATION}")
+    DINOV3_GITHUB_LOCATION = "facebookresearch/dinov3"
 
-##############################################################################################
-# Load the DINOv3 model backbone and send to the CUDA device
-# examples of available DINOv3 models:
-MODEL_DINOV3_VITS = "dinov3_vits16"
-MODEL_DINOV3_VITSP = "dinov3_vits16plus"
-MODEL_DINOV3_VITB = "dinov3_vitb16"
-MODEL_DINOV3_VITL = "dinov3_vitl16"
-MODEL_DINOV3_VITHP = "dinov3_vith16plus"
-MODEL_DINOV3_VIT7B = "dinov3_vit7b16"
+    if os.getenv("DINOV3_LOCATION") is not None:
+        DINOV3_LOCATION = os.getenv("DINOV3_LOCATION")
+    else:
+        DINOV3_LOCATION = DINOV3_GITHUB_LOCATION
 
-MODEL_NAME = MODEL_DINOV3_VIT7B
+    print(f"DINOv3 location set to {DINOV3_LOCATION}")
 
-model = torch.hub.load(
-    repo_or_dir=DINOV3_LOCATION,
-    model=MODEL_NAME,
-    source="local" if DINOV3_LOCATION != DINOV3_GITHUB_LOCATION else "github",
-    weights='./pre_trained_weights/dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth',
-)
+    ##############################################################################################
+    # Load the DINOv3 model backbone and send to the CUDA device
+    # examples of available DINOv3 models:
+    MODEL_DINOV3_VITS = "dinov3_vits16"
+    MODEL_DINOV3_VITSP = "dinov3_vits16plus"
+    MODEL_DINOV3_VITB = "dinov3_vitb16"
+    MODEL_DINOV3_VITL = "dinov3_vitl16"
+    MODEL_DINOV3_VITHP = "dinov3_vith16plus"
+    MODEL_DINOV3_VIT7B = "dinov3_vit7b16"
 
-model.cuda()
-print(model)
+    MODEL_NAME = MODEL_DINOV3_VIT7B
 
-##############################################################################################
-# Load the image data and their labels into the CUDA runtime
-images, labels = load_data.sequence_data_loading()   
+    model = torch.hub.load(
+        repo_or_dir=DINOV3_LOCATION,
+        model=MODEL_NAME,
+        source="local" if DINOV3_LOCATION != DINOV3_GITHUB_LOCATION else "github",
+        weights='./pre_trained_weights/dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth',
+    )
 
-n_images = len(images)
-assert n_images == len(labels), f"{len(images)=}, {len(labels)=}"
+    model.cuda()
+    print(model)
 
-##############################################################################################
-# Building the Per-Patch Label Map
-PATCH_SIZE = 16
-IMAGE_SIZE = 768
+    ##############################################################################################
+    # Load the image data and their labels into the CUDA runtime
+    images, labels = load_data.sequence_data_loading()   
 
-# quantization filter for the given patch size
-patch_quant_filter = torch.nn.Conv2d(1, 1, PATCH_SIZE, stride=PATCH_SIZE, bias=False)
-patch_quant_filter.weight.data.fill_(1.0 / (PATCH_SIZE * PATCH_SIZE))
+    n_images = len(images)
+    assert n_images == len(labels), f"{len(images)=}, {len(labels)=}"
 
-# image resize transform to dimensions divisible by patch size
-def resize_transform(
-    mask_image: Image,
-    image_size: int = IMAGE_SIZE,
-    patch_size: int = PATCH_SIZE,
-) -> torch.Tensor:
-    w, h = mask_image.size
-    h_patches = int(image_size / patch_size)
-    w_patches = int((w * image_size) / (h * patch_size))
-    return TF.to_tensor(TF.resize(mask_image, (h_patches * patch_size, w_patches * patch_size)))
+    ##############################################################################################
+    # Building the Per-Patch Label Map
+    PATCH_SIZE = 16
+    IMAGE_SIZE = 768
+
+    # quantization filter for the given patch size
+    patch_quant_filter = torch.nn.Conv2d(1, 1, PATCH_SIZE, stride=PATCH_SIZE, bias=False)
+    patch_quant_filter.weight.data.fill_(1.0 / (PATCH_SIZE * PATCH_SIZE))
+
+    # image resize transform to dimensions divisible by patch size
+    def resize_transform(
+        mask_image: Image,
+        image_size: int = IMAGE_SIZE,
+        patch_size: int = PATCH_SIZE,
+)   -> torch.Tensor:
+        w, h = mask_image.size
+        h_patches = int(image_size / patch_size)
+        w_patches = int((w * image_size) / (h * patch_size))
+        return TF.to_tensor(TF.resize(mask_image, (h_patches * patch_size, w_patches * patch_size)))
    
-##############################################################################################
-xs = []
-ys = []
-image_index = []
+    ##############################################################################################
+    xs = []
+    ys = []
+    image_index = []
 
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+    IMAGENET_MEAN = (0.485, 0.456, 0.406)
+    IMAGENET_STD = (0.229, 0.224, 0.225)
 
-MODEL_TO_NUM_LAYERS = {
-    MODEL_DINOV3_VITS: 12,
-    MODEL_DINOV3_VITSP: 12,
-    MODEL_DINOV3_VITB: 12,
-    MODEL_DINOV3_VITL: 24,
-    MODEL_DINOV3_VITHP: 32,
-    MODEL_DINOV3_VIT7B: 40,
-}
+    MODEL_TO_NUM_LAYERS = {
+        MODEL_DINOV3_VITS: 12,
+        MODEL_DINOV3_VITSP: 12,
+        MODEL_DINOV3_VITB: 12,
+        MODEL_DINOV3_VITL: 24,
+        MODEL_DINOV3_VITHP: 32,
+        MODEL_DINOV3_VIT7B: 40,
+    }
 
-n_layers = MODEL_TO_NUM_LAYERS[MODEL_NAME]
+    n_layers = MODEL_TO_NUM_LAYERS[MODEL_NAME]
 
-with torch.inference_mode():
-    with torch.autocast(device_type='cuda', dtype=torch.float32):
-        for i in tqdm(range(n_images), desc="Processing images"):
-            # Loading the ground truth
-            mask_i = labels[i]#.split()[-1]
-            mask_i_resized = resize_transform(mask_i)
-            mask_i_quantized = patch_quant_filter(mask_i_resized).squeeze().view(-1).detach().cpu()
-            ys.append(mask_i_quantized)
-            # Loading the image data 
-            image_i = images[i].convert('RGB')
-            image_i_resized = resize_transform(image_i)
-            image_i_resized = TF.normalize(image_i_resized, mean=IMAGENET_MEAN, std=IMAGENET_STD)
-            image_i_resized = image_i_resized.unsqueeze(0).cuda()
+    with torch.inference_mode():
+        with torch.autocast(device_type='cuda', dtype=torch.float32):
+            for i in tqdm(range(n_images), desc="Processing images"):
+                # Loading the ground truth
+                mask_i = labels[i]#.split()[-1]
+                mask_i_resized = resize_transform(mask_i)
+                mask_i_quantized = patch_quant_filter(mask_i_resized).squeeze().view(-1).detach().cpu()
+                ys.append(mask_i_quantized)
+                # Loading the image data 
+                image_i = images[i].convert('RGB')
+                image_i_resized = resize_transform(image_i)
+                image_i_resized = TF.normalize(image_i_resized, mean=IMAGENET_MEAN, std=IMAGENET_STD)
+                image_i_resized = image_i_resized.unsqueeze(0).cuda()
 
-            feats = model.get_intermediate_layers(image_i_resized, n=range(n_layers), reshape=True, norm=True)
-            dim = feats[-1].shape[1]
-            xs.append(feats[-1].squeeze().view(dim, -1).permute(1,0).detach().cpu())
+                feats = model.get_intermediate_layers(image_i_resized, n=range(n_layers), reshape=True, norm=True)
+                dim = feats[-1].shape[1]
+                xs.append(feats[-1].squeeze().view(dim, -1).permute(1,0).detach().cpu())
 
-            image_index.append(i * torch.ones(ys[-1].shape))
+                image_index.append(i * torch.ones(ys[-1].shape))
 
 
-# Concatenate all lists into torch tensors 
-xs = torch.cat(xs)
-ys = torch.cat(ys)
-image_index = torch.cat(image_index)
+    # Concatenate all lists into torch tensors 
+    xs = torch.cat(xs)
+    ys = torch.cat(ys)
+    image_index = torch.cat(image_index)
 
-print("Design full matrix of size : ", xs.shape)
-print("Label full matrix of size : ", ys.shape)
-print("Image full index matrix of size : ", image_index.shape)
+    print("Design full matrix of size : ", xs.shape)
+    print("Label full matrix of size : ", ys.shape)
+    print("Image full index matrix of size : ", image_index.shape)
 
-# keeping only the patches that have clear positive or negative label
-idx = (ys < 0.01) | (ys > 0.99)
-xs = xs[idx]
-ys = ys[idx]
-image_index = image_index[idx]
+    xs_numpy = xs.numpy()
+    ys_numpy = ys.numpy()
 
-print("Design matrix of size : ", xs.shape)
-print("Label matrix of size : ", ys.shape)
-print("Image index matrix of size : ", image_index.shape)
-print("DINOv3 Feature Extractor Script Complete")
+    # Convert to pandas DataFrame
+    df_xs = pd.DataFrame(xs_numpy)
+    df_ys = pd.DataFrame(ys_numpy)
+    
+    os.makedirs(args.output_csv)
+    df_xs.to_csv(args.output_csv + 'X.csv', index=False)
+    df_ys.to_csv(args.output_csv + 'y.csv', index=False)
+    print('Saved xs.csv and ys.csv to their output filepath directory')
 
-# Close your Weights and biases run
-wandb.finish()
+    # keeping only the patches that have clear positive or negative label
+    idx = (ys < 0.01) | (ys > 0.99)
+    xs = xs[idx]
+    ys = ys[idx]
+    image_index = image_index[idx]
+
+    print("Design matrix of size : ", xs.shape)
+    print("Label matrix of size : ", ys.shape)
+    print("Image index matrix of size : ", image_index.shape)
+    print("DINOv3 Feature Extractor Script Complete")
+
+    xs_numpy = xs.numpy()
+    ys_numpy = ys.numpy()
+
+    # Convert to pandas DataFrame
+    df_xs = pd.DataFrame(xs_numpy)
+    df_ys = pd.DataFrame(ys_numpy)
+    
+    df_xs.to_csv(args.output_csv + 'X_reduced.csv', index=False)
+    df_ys.to_csv(args.output_csv + 'y_reduced.csv', index=False)
+    print('Saved xs_reduced.csv and ys_reduced.csv to their output filepath directory')
+
+    # Close your Weights and biases run
+    wandb.finish()
+    
+# Executes the main method from the main.py Python script
+if __name__ == '__main__':
+    # Calls the main function for the DINOv3 feature extractor (FE) script
+    main()
