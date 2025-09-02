@@ -153,6 +153,10 @@ def main():
     print("Design full matrix of size : ", xs.shape)
     print("Label full matrix of size : ", ys.shape)
     print("Image full index matrix of size : ", image_index.shape)
+    
+    # Get unique values
+    unique_values = torch.unique(ys)
+    print("Unique label values:", unique_values)
 
     os.makedirs(args.output_csv, exist_ok=True)
     x_csv_path = args.output_csv + 'X.csv'
@@ -175,6 +179,9 @@ def main():
     print("Design matrix of size : ", xs.shape)
     print("Label matrix of size : ", ys.shape)
     print("Image index matrix of size : ", image_index.shape)
+    
+    unique_values = torch.unique(ys)
+    print("Unique label values reduced:", unique_values)
     print("DINOv3 Feature Extractor Script Complete")
 
     x_csv_path = args.output_csv + 'X_reduced.csv'
@@ -304,3 +311,4 @@ def print_weight_values(model, model_name="DINOv3", max_layers=10, max_values_pe
 if __name__ == '__main__':
     # Calls the main function for the DINOv3 feature extractor (FE) script
     main()
+
