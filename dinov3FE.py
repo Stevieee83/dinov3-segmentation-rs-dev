@@ -7,16 +7,12 @@ import urllib
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import signal
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import average_precision_score
-from sklearn.linear_model import LogisticRegression
 import torch
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 import pandas as pd
 
-from load_data import LoadData
+from load_data_1 import LoadData
 from output_data_fe import OutputDataFE
 
 import wandb
@@ -29,10 +25,9 @@ parser = argparse.ArgumentParser()
 # Input parameters
 parser.add_argument("--model_type", type=str, default='ViT7b')
 parser.add_argument("--run", type=int, default=1)
-parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images")
-parser.add_argument("--labels_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks")
-parser.add_argument("--output_dir_first", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main/saved_models/")
-parser.add_argument("--output_csv", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main/output_csv/")
+parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images/borebreen_crop_drone_11.png")
+parser.add_argument("--labels_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks/borebreen_crop_drone_11.png")
+parser.add_argument("--output_csv", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main-fedr/output_csv/")
 # ------------------------------------------------------------------------
 
 # Main funciton to sequence the Python script source code
@@ -40,10 +35,6 @@ def main():
     # Creates the ArgumentParser object in the main function
     args = parser.parse_args()
     
-    output_dir = args.output_dir_first + f"{args.run}/"      # Output filepath directory to save output data to
-
-    os.makedirs(output_dir, exist_ok=True)
-
     load_data = LoadData(args.image_dir, args.labels_dir)
 
     # Initialise the Weights and Biases run
@@ -78,7 +69,7 @@ def main():
         repo_or_dir=DINOV3_LOCATION,
         model=MODEL_NAME,
         source="local" if DINOV3_LOCATION != DINOV3_GITHUB_LOCATION else "github",
-        weights='./pre_trained_weights/dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth',
+        weights='/uoa/scratch/users/r02sw23/dinov3-main/pre_trained_weights/dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth',
     )
 
     model.cuda()
@@ -165,7 +156,7 @@ def main():
     y_csv_path = args.output_csv + 'y.csv'
 
     # Define the OutputDataFE Python object and load the X (features) and y (labels)
-    output_data = OutputDataFE(x_tensor, y_tensor, x_csv_path, y_csv_path)
+    output_data = OutputDataFE(xs, ys, x_csv_path, y_csv_path)
 
     # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
     x_df = output_data.tensor_to_df_features()
@@ -187,7 +178,7 @@ def main():
     y_csv_path = args.output_csv + 'y_reduced.csv'
 
     # Define the OutputDataFE Python object and load the X (features) and y (labels)
-    output_data = OutputDataFE(x_tensor, y_tensor, x_csv_path, y_csv_path)
+    output_data = OutputDataFE(xs, ys, x_csv_path, y_csv_path)
 
     # Call the Python class methods to output the X and y data from the DINOv3 feature extractor
     x_df = output_data.tensor_to_df_features()
@@ -201,4 +192,3 @@ def main():
 if __name__ == '__main__':
     # Calls the main function for the DINOv3 feature extractor (FE) script
     main()
-
