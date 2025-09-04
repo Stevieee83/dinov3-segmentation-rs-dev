@@ -25,8 +25,8 @@ parser = argparse.ArgumentParser()
 # Input parameters
 parser.add_argument("--model_type", type=str, default='ViT7b')
 parser.add_argument("--images_no", type=int, default=10)
-parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images/")
-parser.add_argument("--labels_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks/")
+parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images")
+parser.add_argument("--labels_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks")
 parser.add_argument("--output_csv", type=str, default="/uoa/scratch/users/r02sw23/dinov3-main-fedr/output_csv_images/")
 # ------------------------------------------------------------------------
 
