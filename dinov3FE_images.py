@@ -38,7 +38,7 @@ def main():
     load_data = LoadData(args.image_dir, args.labels_dir)
 
     # Initialise the Weights and Biases run
-    wandb.init(project=f"DINOv3 Segmentation FE to CSV {args.model_type}",
+    wandb.init(project=f"DINOv3 Segmentation FE to CSV {args.model_type} Images",
                 name=f"Images: {args.images_no}")
 
     # Copy your config
