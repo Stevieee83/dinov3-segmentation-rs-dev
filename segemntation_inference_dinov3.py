@@ -79,7 +79,8 @@ def main():
             
             # Raw predictions
             pred_vit7b = segmentor(batch_img)
-            print(f"Raw prediction shape: {pred_vit7b.shape}")
+            print(f"Raw prediction shape key 1: {pred_vit7b['pred_logits'].shape}")
+            print(f"Raw prediction shape key 2: {pred_vit7b['pred_masks'].shape}")
             
             # Generate segmentation map
             segmentation_map_vit7b = make_inference(
@@ -111,19 +112,18 @@ def main():
     plt.axis("off")
     
     # Save results
-    output_path = os.path.join(output_dir, 'subplot_results.png')
-    plt.savefig(output_path + 'segmentation_map_subplot.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir + 'subplot_results.png')
     plt.close()
-    print(f"Results saved to: {output_path}")
+    print(f"Results saved to: {output_dir}")
     
     # Also save individual images
-    img.save(os.path.join(output_dir, 'original_image.png'))
+    img.save(output_dir + 'original_image.png')
     
     # Save segmentation map as image
     seg_img = Image.fromarray(
         (segmentation_map_vit7b[0, 0].cpu().numpy() * 255 / 150).astype('uint8')
     )
-    seg_img.save(os.path.join(output_dir, 'segmentation_map.png'))
+    seg_img.save(output_dir + 'segmentation_map.png')
     
     print("Processing complete!")
 
