@@ -5,3 +5,7 @@ old_code - Original DINOv3 code that was developed after the model release in Au
 dinov3-main - original code used on a SLURM HPC system for DINOv3's foreground segemntaion capabilities with example and custom image/s.
 
 dinov3-main-fedr - original code used on a SLURM HPC system for DINOv3's foreground segemntaion capabilities with custom image/s from Borebreen, Svalbard, Norway.
+
+DINOv3 GitHub Repository Web Link
+
+https://github.com/facebookresearch/dinov3
