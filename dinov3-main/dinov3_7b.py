@@ -324,5 +324,3 @@ with open(model_path, "wb") as f:
 
 # Close your Weights and biases run
 wandb.finish()
-
-
