@@ -15,20 +15,13 @@ import torch
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
-from load_data import LoadData
-
 import wandb
 
 model_type = 'ViT7b'
-run = 5
-
-image_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/images"      # Directory containing your images
-labels_dir = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data/masks"      # Directory containing your labels
-output_dir = f"/uoa/scratch/users/r02sw23/dinov3-main/saved_models/{str(run)}/"      # Output filepath directory to save output data to
-
-os.makedirs(output_dir, exist_ok=True)
-
-load_data = LoadData(image_dir, labels_dir)
+run = 1
+file_path = './output_image_data/'
+file_path_images = 'images/'
+file_path_labels = 'labels/'
 
 # Initialise the Weights and Biases run
 wandb.init(project=f"DINOv3 Segmentation FE {model_type}",
@@ -70,10 +63,66 @@ print(model)
 
 ##############################################################################################
 # Load the image data and their labels into the CUDA runtime
-images, labels = load_data.sequence_data_loading()   
+IMAGES_URI = "https://dl.fbaipublicfiles.com/dinov3/notebooks/foreground_segmentation/foreground_segmentation_images.tar.gz"
+LABELS_URI = "https://dl.fbaipublicfiles.com/dinov3/notebooks/foreground_segmentation/foreground_segmentation_labels.tar.gz"
 
+def load_images_from_remote_tar(tar_uri: str) -> list[Image.Image]:
+    images = []
+    with urllib.request.urlopen(tar_uri) as f:
+        tar = tarfile.open(fileobj=io.BytesIO(f.read()))
+        for member in tar.getmembers():
+            image_data = tar.extractfile(member)
+            image = Image.open(image_data)
+            images.append(image)
+    return images
+    
+images = load_images_from_remote_tar(IMAGES_URI)
+labels = load_images_from_remote_tar(LABELS_URI)
 n_images = len(images)
 assert n_images == len(labels), f"{len(images)=}, {len(labels)=}"
+
+os.makedirs(file_path + file_path_images, exist_ok=True)
+os.makedirs(file_path + file_path_labels, exist_ok=True)
+
+# Save the data downlaoded from the server to numpy .npy files
+def save_image_data(images, labels):
+
+    # Save each image to a separate .npy file
+    for i, img in enumerate(images):
+        np.save(file_path + file_path_labels + f"image_{i+1}.npy", img)
+    print("Saved 9 images as .npy files.")
+
+    # Save each image to a separate .npy file
+    for i, img in enumerate(labels):
+        np.save(file_path + file_path_images + f"label_{i+1}.npy", img)
+    print("Saved 9 labels as .npy files.")
+
+save_image_data(images, labels)
+
+##############################################################################################
+# Visualise an image and a mask pair
+data_index = 0
+
+print(f"Showing image / mask at index {data_index}:")
+
+image = images[data_index]
+mask = labels[data_index]
+foreground = Image.composite(image, mask, mask)
+mask_bg_np = np.copy(np.array(mask))
+mask_bg_np[:, :, 3] = 255 - mask_bg_np[:, :, 3]
+mask_bg = Image.fromarray(mask_bg_np)
+background = Image.composite(image, mask_bg, mask_bg)
+
+data_to_show = [image, mask, foreground, background]
+data_labels = ["Image", "Mask", "Foreground", "Background"]
+
+plt.figure(figsize=(16, 4), dpi=300)
+for i in range(len(data_to_show)):
+    plt.subplot(1, len(data_to_show), i + 1)
+    plt.imshow(data_to_show[i])
+    plt.axis('off')
+    plt.title(data_labels[i], fontsize=12)
+plt.show()
 
 ##############################################################################################
 # Building the Per-Patch Label Map
@@ -94,7 +143,32 @@ def resize_transform(
     h_patches = int(image_size / patch_size)
     w_patches = int((w * image_size) / (h * patch_size))
     return TF.to_tensor(TF.resize(mask_image, (h_patches * patch_size, w_patches * patch_size)))
-   
+
+##############################################################################################
+# Visualise the first mask before and after quantisation
+mask_0 = labels[0].split()[-1]
+mask_0_resized = resize_transform(mask_0)
+with torch.no_grad():
+    mask_0_quantized = patch_quant_filter(mask_0_resized).squeeze().detach().cpu()
+
+plt.figure(figsize=(4, 2), dpi=300)
+plt.subplot(1, 2, 1)
+plt.imshow(mask_0)
+plt.axis('off')
+plt.title(f"Original Mask, Size {mask_0.size}", fontsize=5)
+plt.subplot(1, 2, 2)
+plt.imshow(mask_0_quantized)
+plt.axis('off')
+plt.title(f"Quantized Mask, Size {tuple(mask_0_quantized.shape)}", fontsize=5)
+plt.show()
+
+##############################################################################################
+# Extract features and Labels for all the images
+#with torch.no_grad():        
+    #feats = model.get_intermediate_layers(img, n=range(n_layers), reshape=True, norm=True)
+    #dim = feats[-1].shape[1]
+    #xs.append(feats[-1].squeeze().view(dim, -1).permute(1,0).detach().cpu())
+    
 ##############################################################################################
 xs = []
 ys = []
@@ -118,7 +192,7 @@ with torch.inference_mode():
     with torch.autocast(device_type='cuda', dtype=torch.float32):
         for i in tqdm(range(n_images), desc="Processing images"):
             # Loading the ground truth
-            mask_i = labels[i]#.split()[-1]
+            mask_i = labels[i].split()[-1]
             mask_i_resized = resize_transform(mask_i)
             mask_i_quantized = patch_quant_filter(mask_i_resized).squeeze().view(-1).detach().cpu()
             ys.append(mask_i_quantized)
@@ -148,7 +222,6 @@ image_index = image_index[idx]
 
 print("Design matrix of size : ", xs.shape)
 print("Label matrix of size : ", ys.shape)
-print("Image index matrix of size : ", image_index.shape)
 print("DINOv3 Feature Extractor Script Complete")
 
 ##############################################################################################
@@ -181,8 +254,7 @@ for i in range(n_images):
     plt.ylabel('precision')
     plt.axis([0, 1, 0, 1])
     plt.legend()
-    plt.savefig(output_dir + f'precision_rcall_scores_{i}.png')
-    plt.close()
+    plt.show()
     
 ##############################################################################################
 # Choosing the best C
@@ -197,18 +269,22 @@ plt.xticks(np.arange(len(cs)), ["{:.0e}".format(c) for c in cs])
 plt.xlabel('data fit C')
 plt.ylabel('average AP')
 plt.grid()
-plt.savefig(output_dir + 'borebreen_cv_scores.png')
-plt.close()
+plt.show()
 
 ##############################################################################################
 # Retraining with the optimal regularisation of C = 0.1
-clf = LogisticRegression(random_state=0, C=0.01, max_iter=100000, verbose=2).fit(xs.numpy(), (ys > 0).long().numpy())
+clf = LogisticRegression(random_state=0, C=0.1, max_iter=100000, verbose=2).fit(xs.numpy(), (ys > 0).long().numpy())
 
 ##############################################################################################
 # Test images and inferrence
-test_image_path = "/uoa/scratch/users/r02sw23/borebreen-drone-image-data-test/images/borebreen_crop_drone_3.png"
+test_image_fpath = "https://dl.fbaipublicfiles.com/dinov3/notebooks/foreground_segmentation/test_image.jpg"
 
-test_image = Image.open(test_image_path).convert("RGB")
+def load_image_from_url(url: str) -> Image:
+    with urllib.request.urlopen(url) as f:
+        return Image.open(f).convert("RGB")
+
+
+test_image = load_image_from_url(test_image_fpath)
 test_image_resized = resize_transform(test_image)
 test_image_normalized = TF.normalize(test_image_resized, mean=IMAGENET_MEAN, std=IMAGENET_STD)
 
@@ -237,12 +313,12 @@ plt.subplot(1, 3, 3)
 plt.axis('off')
 plt.imshow(fg_score_mf)
 plt.title('+ median filter')
-plt.savefig(output_dir + 'model_outputs_plot_borebreen.png')
-plt.close()
+plt.show()
 
 ##############################################################################################
 # Saving the model for future use as a pickle file
-model_path = os.path.join(output_dir, "fg_classifier.pkl")
+save_root = '.'
+model_path = os.path.join(save_root, "fg_classifier.pkl")
 with open(model_path, "wb") as f:
   pickle.dump(clf, f)
 
