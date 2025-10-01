@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser()
 
 # Input parameters
 #parser.add_argument("--model_type", type=str, default='ViT7b')
-parser.add_argument("--model_type", type=str, default='RF')
+parser.add_argument("--model_type", type=str, default='LR')
 parser.add_argument("--start_img", type=int, default=1)
 parser.add_argument("--end_img", type=int, default=10)
 parser.add_argument("--image_dir", type=str, default="/uoa/scratch/users/r02sw23/borebreen-drone-image-data-test/images/")
