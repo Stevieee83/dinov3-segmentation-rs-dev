@@ -7,3 +7,5 @@ inference_mode_images.py - perform inference mode predictions with a trained Log
 load_data_1_image - loads the image data from a filepath directory to the Logistic Regression scripts.
 
 load_data.py - loads the image data from a filepath directory to the DINOv3 script.
+
+output_data_fe.py - Outputs the DINOv3 features extracted as CSV data to the output_csv filepath directory created in the script.
